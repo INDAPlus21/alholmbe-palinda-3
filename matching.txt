@@ -1,0 +1,14 @@
+1. What happens if you remove the go-command from the Seek call in the main function?
+- every call to Seek will wait until the previous call is finished, and the result will be that
+  the names are in the same order on every run
+
+2. What happens if you switch the declaration wg := new(sync.WaitGroup) to var wg sync.WaitGroup and the parameter wg *sync.WaitGroup to wg sync.WaitGroup?
+- instead of passing the waitgroup by reference, we are now passing it by value which means that
+  our calls to wg.Done in seek isn't called on the original waitgroup, but on waitgroup that is 
+  local to the Seek function
+
+3. What happens if you remove the buffer on the channel match?
+- the program will reach a deadlock after the last message is written to the channel
+
+4. What happens if you remove the default-case from the case-statement in the main function?
+- nothing
