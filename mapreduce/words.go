@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -16,16 +17,47 @@ func cleanStr(str string) string {
 	return str
 }
 
-// Return the word frequencies of the text argument.
 func WordCount(text string) map[string]int {
-	str := strings.ToLower(text)
-	str = cleanStr(str)
+	freq := make(map[string]int)
+	words := strings.Fields(text)
+	wordsLen := len(words)
+	workers := 100
+	var wg sync.WaitGroup
+	ch := make(chan map[string]int, workers+1)
+	BATCH_SIZE := wordsLen / workers
 
-	freqs := make(map[string]int)
-	for _, w := range strings.Fields(str) {
-		freqs[w]++
+	// work on the text in batches of BATCH_SIZE
+	for i, j := 0, BATCH_SIZE; i < wordsLen; i, j = j, (j + BATCH_SIZE) {
+
+		// this will occur at the end
+		if wordsLen < j {
+			j = wordsLen
+		}
+		wg.Add(1)
+
+		go func(x, y int) {
+			subFreq := make(map[string]int)
+
+			for _, word := range words[x:y] {
+				subFreq[cleanStr(word)]++
+			}
+
+			ch <- subFreq
+			wg.Done()
+		}(i, j)
 	}
-	return freqs
+
+	wg.Wait()
+	close(ch)
+
+	for m := range ch {
+		for w, count := range m {
+			freq[w] += count
+		}
+	}
+
+	return freq
+
 }
 
 // Benchmark how long it takes to count word frequencies in text numRuns times.
@@ -55,8 +87,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
-	fmt.Printf("%#v", WordCount(string(data)))
 
 	numRuns := 100
 	runtimeMillis := benchmark(string(data), numRuns)
